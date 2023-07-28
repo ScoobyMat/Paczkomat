@@ -22,5 +22,5 @@ za pomocą atrakcyjnego wizualnie interfejsu.
 - Framework Vaadin
 - Spring Boot
 - Hibernate
-- Baza danych PostgreSQL
 - Maven
+- Baza danych PostgreSQL
