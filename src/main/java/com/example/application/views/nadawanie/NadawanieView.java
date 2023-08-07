@@ -22,6 +22,10 @@ import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.router.RouteAlias;
 import com.vaadin.flow.theme.lumo.LumoUtility.Gap;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.mail.MailException;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 
 import java.util.List;
 import java.util.Random;
@@ -31,7 +35,7 @@ import java.util.Random;
 @RouteAlias(value = "", layout = MainLayout.class)
 @Uses(Icon.class)
 public class NadawanieView extends Composite<VerticalLayout> {
-
+    private JavaMailSender javaMailSender;
     private Paragraph textLarge = new Paragraph();
 
     private HorizontalLayout layoutRow = new HorizontalLayout();
@@ -49,7 +53,9 @@ public class NadawanieView extends Composite<VerticalLayout> {
     private SkrytkaService skrytkaService;
     private PaczkaService paczkaService;
 
-    public NadawanieView(SkrytkaService skrytkaService, PaczkaService paczkaService) {
+
+    public NadawanieView(SkrytkaService skrytkaService, PaczkaService paczkaService,JavaMailSender javaMailSender) {
+        this.javaMailSender = javaMailSender;
         this.skrytkaService = skrytkaService;
         this.paczkaService = paczkaService;
         getContent().setHeightFull();
@@ -100,8 +106,10 @@ public class NadawanieView extends Composite<VerticalLayout> {
             selectedSkrytka.setStatus(Skrytka.StatusSkrytki.Zajęta);
             paczkaService.update(paczka);
             skrytkaService.update(selectedSkrytka);
-        }
-        else {
+
+            wyslijKodOdbioruEmail(odbiorcaEmail, paczka.getKodOdbioru(), paczka.getId());
+            Notification.show("Paczka została nadana, wiadomość z kodem odbioru została wysłana!", 5000, Notification.Position.MIDDLE);
+        } else {
             Notification notification = new Notification("Brak wolnych skrytek", 3000);
             notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
             notification.open();
@@ -112,6 +120,22 @@ public class NadawanieView extends Composite<VerticalLayout> {
         rozmiarComboBox.clear();
         typComboBox.clear();
     }
+
+    public void wyslijKodOdbioruEmail(String odbiorcaEmail, String kodOdbioru, Long paczkaId) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo(odbiorcaEmail);
+        message.setSubject("Kod odbioru paczki - Numer przesyłki" + paczkaId);
+        message.setText("Twój kod odbioru paczki: " + paczkaId + "to:" + kodOdbioru);
+
+        try {
+            javaMailSender.send(message);
+            Notification.show("Wiadomość z kodem odbioru została wysłana!", 3000, Notification.Position.MIDDLE);
+        } catch (MailException e) {
+            Notification.show("Błąd podczas wysyłania wiadomości e-mail.", 3000, Notification.Position.MIDDLE).addThemeVariants(NotificationVariant.LUMO_ERROR);
+            e.printStackTrace();
+        }
+    }
+
 
     public class KodOdbioruGenerator {
 

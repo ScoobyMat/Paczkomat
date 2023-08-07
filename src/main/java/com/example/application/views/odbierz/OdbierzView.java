@@ -42,14 +42,14 @@ public class OdbierzView extends Composite<VerticalLayout> {
         textField2.setLabel("Kod odbioru");
         buttonPrimary.setText("Odbierz");
         buttonPrimary.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        buttonPrimary.addClickListener(e -> onButtonPrimaryClick());
+        buttonPrimary.addClickListener(e -> OdbiorClick());
         getContent().add(layoutRow);
         layoutRow.add(textField);
         layoutRow.add(textField2);
         getContent().add(buttonPrimary);
     }
 
-    private void onButtonPrimaryClick() {
+    private void OdbiorClick() {
         String numerPrzesylki = textField.getValue();
         String kodOdbioru = textField2.getValue();
 
