@@ -1,16 +1,19 @@
 package com.example.application.views.nadawanie;
 
-import com.example.application.data.entity.SamplePerson;
-import com.example.application.data.service.SamplePersonService;
+import com.example.application.data.entity.Paczka;
+import com.example.application.data.entity.Skrytka;
+import com.example.application.data.service.PaczkaService;
+import com.example.application.data.service.SkrytkaService;
 import com.example.application.views.MainLayout;
 import com.vaadin.flow.component.Composite;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
-import com.vaadin.flow.component.combobox.MultiSelectComboBox;
+import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.dependency.Uses;
-import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.icon.Icon;
+import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.EmailField;
@@ -18,10 +21,10 @@ import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.router.RouteAlias;
-import com.vaadin.flow.spring.data.VaadinSpringDataHelpers;
 import com.vaadin.flow.theme.lumo.LumoUtility.Gap;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.PageRequest;
+
+import java.util.List;
+import java.util.Random;
 
 @PageTitle("Nadawanie")
 @Route(value = "Nadawanie", layout = MainLayout.class)
@@ -37,17 +40,18 @@ public class NadawanieView extends Composite<VerticalLayout> {
 
     private EmailField emailField = new EmailField();
 
-    private MultiSelectComboBox multiSelectComboBox = new MultiSelectComboBox();
+    private ComboBox<String> rozmiarComboBox = new ComboBox<>();
 
-    private MultiSelectComboBox multiSelectComboBox2 = new MultiSelectComboBox();
+    private ComboBox<String> typComboBox = new ComboBox<>();
 
-    private Button buttonPrimary = new Button();
+    private Button PrzyciskNadaj = new Button();
 
-    private Grid multiSelectGrid = new Grid(SamplePerson.class);
+    private SkrytkaService skrytkaService;
+    private PaczkaService paczkaService;
 
-    private Button buttonPrimary2 = new Button();
-
-    public NadawanieView() {
+    public NadawanieView(SkrytkaService skrytkaService, PaczkaService paczkaService) {
+        this.skrytkaService = skrytkaService;
+        this.paczkaService = paczkaService;
         getContent().setHeightFull();
         getContent().setWidthFull();
         textLarge.setText("Nadaj paczkę");
@@ -58,39 +62,70 @@ public class NadawanieView extends Composite<VerticalLayout> {
         textField.setHeightFull();
         emailField.setLabel("Email odbiorcy");
         emailField.setHeightFull();
-        multiSelectComboBox.setLabel("Rozmiar paczki");
-        multiSelectComboBox.setHeightFull();
-        setMultiSelectComboBoxSampleData(multiSelectComboBox);
-        multiSelectComboBox2.setLabel("Typ przesyłki");
-        multiSelectComboBox2.setHeightFull();
-        setMultiSelectComboBoxSampleData(multiSelectComboBox2);
-        buttonPrimary.setText("Szukaj skrytki");
-        buttonPrimary.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        multiSelectGrid.setSelectionMode(Grid.SelectionMode.MULTI);
-        setGridSampleData(multiSelectGrid);
-        buttonPrimary2.setText("Nadaj");
-        buttonPrimary2.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        rozmiarComboBox.setLabel("Rozmiar paczki");
+        rozmiarComboBox.setItems("S", "L", "XL");
+        rozmiarComboBox.setHeightFull();
+        typComboBox.setLabel("Typ przesyłki");
+        typComboBox.setItems("Długoterminowa", "Krótkoterminowa");
+        typComboBox.setHeightFull();
+        PrzyciskNadaj.setText("Nadaj");
+        PrzyciskNadaj.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        PrzyciskNadaj.addClickListener(e -> NadajClick());
         getContent().add(textLarge);
         getContent().add(layoutRow);
         layoutRow.add(textField);
         layoutRow.add(emailField);
-        layoutRow.add(multiSelectComboBox);
-        layoutRow.add(multiSelectComboBox2);
-        getContent().add(buttonPrimary);
-        getContent().add(multiSelectGrid);
-        getContent().add(buttonPrimary2);
+        layoutRow.add(rozmiarComboBox);
+        layoutRow.add(typComboBox);
+        getContent().add(PrzyciskNadaj);
     }
 
-    private void setMultiSelectComboBoxSampleData(MultiSelectComboBox multiSelectComboBox) {
-        multiSelectComboBox.setItems("First", "Second", "Third", "Fourth");
+    private void NadajClick() {
+        String rozmiar = rozmiarComboBox.getValue();
+        String nadawca = textField.getValue();
+        String odbiorcaEmail = emailField.getValue();
+
+        Paczka paczka = new Paczka();
+        paczka.setNadawca(nadawca);
+        paczka.setOdbiorcaEmail(odbiorcaEmail);
+        paczka.setRozmiarPaczki(rozmiar);
+
+        List<Skrytka> wolneSkrytki = skrytkaService.getWolneSkrytki(rozmiar);
+
+        if (!wolneSkrytki.isEmpty()) {
+            Random random = new Random();
+            Skrytka selectedSkrytka = wolneSkrytki.get(random.nextInt(wolneSkrytki.size()));
+            paczka.setSkrytka(selectedSkrytka);
+            selectedSkrytka.setPaczka(paczka);
+            selectedSkrytka.setStatus(Skrytka.StatusSkrytki.Zajęta);
+            paczkaService.update(paczka);
+            skrytkaService.update(selectedSkrytka);
+        }
+        else {
+            Notification notification = new Notification("Brak wolnych skrytek", 3000);
+            notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+            notification.open();
+        }
+
+        textField.clear();
+        emailField.clear();
+        rozmiarComboBox.clear();
+        typComboBox.clear();
     }
 
-    private void setGridSampleData(Grid grid) {
-        grid.setItems(query -> samplePersonService.list(
-                PageRequest.of(query.getPage(), query.getPageSize(), VaadinSpringDataHelpers.toSpringDataSort(query)))
-                .stream());
-    }
+    public class KodOdbioruGenerator {
 
-    @Autowired()
-    private SamplePersonService samplePersonService;
+        private static final int DLUGOSC_KODU = 6;
+        private static final String ZNAKI = "0123456789";
+        private static final Random random = new Random();
+
+        public static String generujKodOdbioru() {
+            StringBuilder pwd = new StringBuilder(DLUGOSC_KODU);
+            for (int i = 0; i < DLUGOSC_KODU; i++) {
+                int index = random.nextInt(ZNAKI.length());
+                pwd.append(ZNAKI.charAt(index));
+            }
+            return pwd.toString();
+        }
+    }
 }
